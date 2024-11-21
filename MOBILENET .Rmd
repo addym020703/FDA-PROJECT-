@@ -1,0 +1,93 @@
+---
+title: "MOBILENET FDA MODEL"
+author: "HITTESH KUMAR M"
+date: "2024-11-19"
+output: html_document
+---
+
+```{r}
+library(keras)
+library(tensorflow)
+library(magick)
+```
+
+
+```{r}
+train_dir <- "/Users/hitteshkumarm/Desktop/COLLEGE/7th sem/FOUNDATIONAL ANALYTICS/PROJECT/Classification/valid"
+train_nowildfire <- file.path(train_dir, "nofire")
+train_wildfire <- file.path(train_dir, "fire")
+```
+
+```{r}
+img_width <- 150
+img_height <- 150
+batch_size <- 32
+epochs <- 20
+```
+
+```{r}
+train_datagen <- image_data_generator(rescale = 1/255,
+                                      shear_range=0.2,
+                                      zoom_range=0.2)
+```
+
+```{r}
+train_flow <- flow_images_from_directory(
+  train_dir,
+  target_size = c(img_width, img_height),
+  class_mode = "binary",
+  batch_size = batch_size
+)
+```
+
+```{r}
+base_model <- application_mobilenet(weights = "imagenet", include_top = FALSE, input_shape = c(img_width, img_height, 3))
+```
+
+```{r}
+model <- keras_model_sequential() %>%
+  base_model %>%
+  layer_flatten() %>%
+  layer_dense(units = 128, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+```{r}
+model %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = "adam",
+  metrics = c("accuracy")
+)
+```
+
+```{r}
+model_fit <- model %>% fit(train_flow, epochs = epochs)
+```
+
+```{r}
+predict_on_image <- function(image_path) {
+  img <- image_read(image_path)
+  img <- image_resize(img, "150x150")
+  img <- image_convert(img, colorspace = "RGB")
+  img <- image_data(img)
+  img <- as.numeric(img)  # Convert to numeric array
+  img <- array(img, c(1, 150, 150, 3))
+  img <- img / 255
+  
+  prediction <- model %>% predict(img)
+  class_index <- round(prediction[1, 1])
+  if (class_index == 0) {
+    return("Nowildfire")
+  } else {
+    return("Wildfire")
+  }
+}
+```
+
+```{r}
+image_path <- "/Users/hitteshkumarm/Desktop/COLLEGE/7th sem/FOUNDATIONAL ANALYTICS/PROJECT/Classification/test/fire/fire (3613).png"
+predicted_class <- predict_on_image(image_path)
+print(predicted_class)
+```
+
+
